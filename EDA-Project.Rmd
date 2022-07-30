@@ -1,0 +1,506 @@
+---
+title: "EDA_Project"
+author: "Faran Ahmad"
+date: "4/11/2022"
+output: html_document
+---
+Libraries to load before exploring data
+```{r}
+library(tidyverse)
+library(tidyr)
+library(Hmisc)
+library(janitor)
+library(lubridate)
+library(readxl)
+```
+
+Loading Dataset and cleaning names to snake_case
+```{r}
+super_store_data <- readxl::read_excel("Sample - EU Superstore.xls")
+super_store_data |> 
+  janitor::clean_names() -> super_store_data
+```
+
+Summary_statistics
+```{r}
+summary(super_store_data$sales)
+summary(super_store_data$profit)
+```
+
+Relation between Sales and Profit
+```{r}
+plotly::ggplotly(
+  ggplot(super_store_data, aes(x= sales, y= profit))+
+    geom_hex()+
+    geom_smooth()+
+    labs(x="Sales", y="Profit", title = "Relation Between Sales and Profit")
+)
+```
+
+Realtion between Profit and Discount
+```{r}
+plotly::ggplotly(
+  ggplot(super_store_data, aes(x=profit, y= discount))+
+    geom_hex()+
+    geom_smooth()+
+    labs(x="Profit", y="Dicount", title = "Relation Between Profit and Discount")
+)
+```
+
+Customers count across Segments
+```{r}
+plotly::ggplotly(
+  ggplot(super_store_data, aes(x= segment))+
+    geom_bar(fill= "steelblue")+
+    labs(x= "Segments", title = "Customers count across Segments",
+         y= "Frequency")
+)
+```
+
+Shipment-Mode Preference
+```{r}
+plotly::ggplotly(
+  ggplot(super_store_data, aes(x= ship_mode))+
+    geom_bar(fill= "palegreen", col= "black")+
+    labs(x= "Shipment mode", title = "Customers Shipment Mode preference",
+         y= "Frequency")
+)
+```
+
+Distribution of customers across country
+```{r}
+plotly::ggplotly(
+  ggplot(super_store_data |> 
+  group_by(country) |> count(),
+  aes(x= country, y=n, fill= country))+
+    geom_bar(stat = "identity")+
+    labs(x="Country", fill="Labels", y="Number of Customers",
+         title = "Distribution of Customers across Country")+
+    theme(axis.text.x = element_text(angle = 90))
+)
+```
+
+Hot selling Sub-Categories in Categories
+```{r}
+options(scipen = 999)
+plotly::ggplotly(
+  ggplot(super_store_data |> 
+           group_by(category, sub_category) |> 
+           summarise(sales=sum(sales)),
+         aes(x=category, y= sales, fill= sub_category))+
+    geom_bar(stat = "identity", col= "black")+
+    labs(x= "Category", y= "Sales Distribution", fill="Sub-Category",
+         title = "Hot selling Sub-Categories in Categories")
+)
+```
+
+Popular Sub-Categories in Categories
+```{r}
+busin_orient_cat_subcat <- super_store_data |> 
+  group_by(category, sub_category) |> 
+  count()
+options(scipen = 999)
+plotly::ggplotly(
+  ggplot(busin_orient_cat_subcat, aes(x= category, y= n, fill= sub_category))+
+    geom_bar(stat = "identity", col= "lightyellow")+
+    labs(x= "Category", y="Frequency", fill="Sub-Category",
+         title = "Popular Sub-Categories in Categrory")
+)
+```
+
+Sales and Profit by Sub-Category
+```{r}
+sales_profit_by_sub_category <- super_store_data |>
+  group_by(sub_category) |> 
+  summarise(sales=sum(sales),
+            profit= sum(profit)) |> 
+  pivot_longer(sales:profit,
+               names_to = "key",
+               values_to = "value")
+options(scipen = 999)
+plotly::ggplotly(
+  ggplot(sales_profit_by_sub_category, aes(x= sub_category, y= value,
+                                           fill= key))+
+    geom_bar(stat = "identity", position = "dodge")+
+    theme(axis.text.x = element_text(angle = 90)) +
+    labs(x= "Sub-Category", y= "Total Sales and Profits",
+         title = "Sales and Profit by Sub-Category")
+)
+```
+
+Gross-Profit by Sub-Category
+```{r}
+plotly::ggplotly(
+  ggplot(super_store_data |> 
+           group_by(sub_category) |> 
+           summarise(gross_profit= sum(profit)),
+         aes(x= sub_category, y= gross_profit))+
+    geom_col(fill= "lightyellow", col= "black")+
+    theme(axis.text.x = element_text(angle = 90)) +
+    labs(x= "Sub-Category", y= "Gross-Profit",
+         title = "Gross-Profit by Sub-Category")
+)
+```
+
+Gross-Profit by Category
+```{r}
+plotly::ggplotly(
+  ggplot(super_store_data |> 
+           group_by(category) |> 
+           summarise(gross_profit= sum(profit)),
+         aes(x= category, y= gross_profit))+
+    geom_col(fill= "lightyellow", col= "black")+
+    theme(axis.text.x = element_text(angle = 90)) +
+    labs(x= "Category", y= "Gross-Profit",
+         title = "Gross-Profit by Category")
+)
+```
+
+Profit by category and subcategory
+```{r}
+options(scipen = 999)
+plotly::ggplotly(
+  ggplot(super_store_data |> 
+           group_by(category,sub_category) |> 
+           summarise(profit= sum(profit)),
+         aes(x= category, y= profit, fill= sub_category))+
+    geom_col(col="black") +
+    labs(x= "Category", y= "Profit", fill= "Sub-Category",
+         title = "Profit by Category and Sub-Category")
+)
+```
+
+Sales Trend Over Years
+```{r}
+super_store_data |> 
+  mutate(year= lubridate::year(order_date)) |> 
+  group_by(year) |> 
+  summarise(revenue= sum(sales))-> yearly_sales
+options(scipen = 999)
+plotly::ggplotly(
+  ggplot(yearly_sales, aes(x=year, y= revenue))+
+    geom_point(col="yellow", size = 2)+
+    geom_line(col= "blue4") +
+    labs(x= "Years", y= "Revenue", title =  "Sales Trend Over Years")
+)
+```
+
+Monthly Sales Trend over Years
+```{r}
+super_store_data |> 
+  mutate(month= lubridate::month(order_date, label = TRUE),
+         year= lubridate:: year(order_date)) |>
+  group_by(month, year) |> 
+  summarise(sales= sum(sales)) -> monthly_sales_by_year
+plotly::ggplotly(
+  ggplot(monthly_sales_by_year, aes(x= month, y= sales, color= as.factor(year),
+                                    group= as.factor(year)))+
+    geom_line()+
+    geom_point(col= "black", size= 1) +
+    labs(x= "Months", y= "Sales Value", color= "Years",
+         title = "Monthly Sales Trend over Years")
+)
+```
+
+Monthly Purchase Frequency across years
+```{r}
+super_store_data |> 
+  mutate(month= lubridate::month(order_date, label = TRUE),
+         year= lubridate::year(order_date)) |> 
+  group_by(month, year) |> 
+  summarise(n_transactions= n_distinct(order_id)) ->monthly_p_freq_ov_years
+plotly::ggplotly(
+  ggplot(monthly_p_freq_ov_years, aes(x= month, y= n_transactions,
+                                      color= as.factor(year),
+                                      group= as.factor(year)))+
+    geom_line()+
+    geom_point(col= "black", size=1)+
+    labs(x= "Months", y="Number of Transactions", color= "Years",
+         title = "Montly Purchase Frequency Across Years")
+)
+```
+
+Monthly Sales Trend Across Years Region Wise
+```{r}
+super_store_data |> 
+  mutate(month= lubridate::month(order_date, label = TRUE),
+         year= lubridate::year(order_date)) |> 
+  group_by(month,year,region) |> 
+  summarise(revenue= sum(sales)) ->m_y_sales_trend_region
+plotly::ggplotly(
+  ggplot(m_y_sales_trend_region, aes(x= month, y= revenue,
+                                      color= as.factor(year),
+                                      group= as.factor(year)))+
+    geom_line()+
+    geom_point(col= "black", size=1)+
+    facet_wrap(~region, nrow = 3)+
+    theme(axis.text.x = element_text(angle = 90))+
+    labs(x= "Years", y="Sales", color= "Year",
+         title = "Montly Sales Trend Across Years Region Wise")
+)
+```
+
+Average Life-Span of Customers with Business in Months
+```{r}
+super_store_data |>
+  group_by(customer_id) |> 
+  summarise(monthly_lifespan= difftime(max(order_date), min(order_date), units = "days")) |>
+  mutate(monthly_lifespan= round(as.integer(monthly_lifespan/30))) -> cus_eng_monthly
+plotly::ggplotly(
+  ggplot(cus_eng_monthly |> 
+           filter(monthly_lifespan > 0),
+         aes(x= monthly_lifespan))+
+    geom_bar(fill= "steelblue", col= "lightyellow")+
+    labs(x= "Monthly Life-Span", y= "Number of Customers",
+         title = "Average Life-Span of Customers with Business in Months")
+)
+```
+
+Dominant Sub-Categories Over Years (Transactions)
+```{r}
+super_store_data |> 
+  mutate(year= lubridate::year(order_date)) |> 
+  group_by(sub_category, year) |> 
+  summarise(n_transactions= n_distinct(order_id)) -> dom_sbcat_o_years
+plotly::ggplotly(
+  ggplot(dom_sbcat_o_years, aes(x= sub_category, y= n_transactions,
+                                color= as.factor(year),
+                                group= as.factor(year)))+
+    geom_line()+
+    labs(x= "Number of Transactions", y= "Sub-Category",
+         title = "Dominant Sub-Categories Over Years (Transactions)") +
+    theme(axis.text.x = element_text(angle = 45))
+)
+```
+
+Dominant Category Over Years (Transactions)
+```{r}
+super_store_data |> 
+  mutate(year= lubridate::year(order_date)) |> 
+  group_by(category, year) |> 
+  summarise(n_transactions= n_distinct(order_id)) -> dom_cat_o_years
+plotly::ggplotly(
+  ggplot(dom_cat_o_years, aes(x= category, y= n_transactions,
+                              color= as.factor(year), group= as.factor(year))) +
+    geom_line() +
+    geom_point(col= "black", size = 1)+
+    labs(x= "Category", y= "Number of Transactions", color= "Year",
+         title = "Dominant Sub-Categories Over Years (Transactions)")
+)
+```
+
+Dominant Segment Over Years (Revenue)
+```{r}
+super_store_data |> 
+  mutate(year= lubridate::year(order_date)) |> 
+  group_by(segment, year) |> 
+  summarise(revenue= sum(sales)) -> dom_seg_o_years
+plotly::ggplotly(
+  ggplot(dom_seg_o_years, aes(x= segment, y= revenue, color= as.factor(year),
+                              group= as.factor(year))) +
+    geom_line()+
+    geom_point(col= "black", size= 1) +
+    labs(x= "Segment", y= "Revenue",
+         title = "Dominant Segment Over Years (Revenue)")
+)
+```
+
+Dominant Country Over Years (Profit)
+```{r}
+super_store_data |> 
+  mutate(year= lubridate::year(order_date)) |> 
+  group_by(country, year) |> 
+  summarise(profit= sum(profit)) -> dom_country_o_years
+plotly::ggplotly(
+  ggplot(dom_country_o_years, aes(x= country, y= profit, col= as.factor(year),
+         group= as.factor(year)))+
+    geom_line()+
+    geom_point(col= "black", size= 1)+
+    labs(x= "Country", y= "Profit",
+         title = "Dominant Country Over Years (Profit)")+
+    theme(axis.text.x = element_text(angle = 90))
+)
+```
+
+Average Basket size of Sub-Categories
+```{r}
+super_store_data |> 
+  mutate(n_transactions= n_distinct(order_id)) |> 
+  group_by(sub_category) |> 
+  summarise(quantity= sum(quantity),
+            n_transactions= n_transactions) |> 
+  distinct() |> 
+  mutate(basket_size= quantity/n_transactions) -> avg_basket_size_subcat
+plotly::ggplotly(
+  ggplot(avg_basket_size_subcat, aes(x= basket_size, y= sub_category))+
+    geom_col(fill="darkseagreen", col="black")+
+    labs(x= "Average Basket Size", y= "Sub-Category",
+         title = "Average Basket size of Sub-Categories")
+)
+```
+
+Average Basket size of Sub-Categories By Region
+```{r}
+super_store_data |> 
+  mutate(n_transactions= n_distinct(order_id)) |> 
+  group_by(sub_category,region) |> 
+  summarise(quantity= sum(quantity),
+            n_transactions= n_transactions) |>
+  mutate(basket_size= quantity/n_transactions) ->avg_basket_size_region
+plotly::ggplotly(
+  ggplot(avg_basket_size_region, aes(x= basket_size, y= sub_category))+
+    geom_col(fill="darkseagreen") +
+    facet_wrap(~region) +
+    labs(x= "Average Basket Size", y= "Sub-Category",
+         title = "Average Basket size of Sub-Categories By Region")
+)
+```
+
+Average Basket size by product
+```{r}
+super_store_data |> 
+  mutate(n_transactions= n_distinct(order_id)) |> 
+  filter(sub_category == "Tables") |> 
+  group_by(product_id,sub_category) |> 
+  summarise(quantity= sum(quantity),
+            n_transactions= n_transactions) |>
+  distinct() |>
+  mutate(basket_size= quantity/n_transactions) ->avg_basket_size_product
+plotly::ggplotly(
+  ggplot(avg_basket_size_product, aes(x= basket_size, y= product_id)) +
+    geom_col(fill= "steelblue", col= "black") +
+    facet_wrap(~ sub_category) +
+    labs(x= "Average Basket-Size", y= "Product-ID",
+         title = "Average Basket-Size by Product")
+)
+```
+
+Purchase Frequency Across Week-Days in Months
+```{r}
+super_store_data |> 
+  mutate(month= lubridate::month(order_date, label = TRUE),
+         week_day=weekdays(order_date)) |> 
+  group_by(month, week_day) |>
+  summarise(n_transactions= n_distinct(order_id)) ->n_trans_week_days
+plotly::ggplotly(
+  ggplot(n_trans_week_days, aes(x= month, y= week_day, fill= n_transactions))+
+    geom_tile()+
+    labs(x= "Month", y= "Week-Days", fill = "Purchase Frequency",
+         title = "Purchase Frequency Across Week-Days in Months")
+)
+```
+
+RFM-Analysis
+```{r}
+date_today <- lubridate::ymd("2019/04/10")
+super_store_data |> 
+  group_by(customer_id) |> 
+  summarise(total_revenue= sum(sales),
+            n_transactions= n_distinct(order_id),
+            last_purchase_date= max(order_date)) |>
+  mutate(days_since_last_purchase=
+           difftime(date_today, last_purchase_date, units = "days")) |>
+  filter(total_revenue > 0) |> 
+  mutate(monetary_quintile = cut2(total_revenue, g =5),
+         frequency_quintile = cut2(n_transactions, g = 5),
+         recency_quintile = cut2(days_since_last_purchase, g = 5)) |> 
+  mutate(recency_score = as.integer(recency_quintile),
+         frequency_score = as.integer(frequency_quintile),
+         monetary_score = as.integer(monetary_quintile)) |> 
+  mutate(recency_score = dense_rank(desc(recency_score))) |>
+  mutate(RFM= recency_score * 100 + frequency_score * 10 + monetary_score) |>
+  mutate(segments= ifelse(recency_score >= 4 & frequency_score >= 3 & monetary_score >= 4, "Champions",
+                          ifelse((recency_score >= 4) & (frequency_score <= 2) & (monetary_score >= 4), "High Spending New Customers",
+                                 ifelse((recency_score >= 4) & (frequency_score >= 4) & (monetary_score == 3), "Average Spending Champions",
+                                        ifelse((recency_score >= 2 & recency_score <= 4) & (frequency_score >= 3 & frequency_score <= 5) & (monetary_score >= 4), "Loyal Customers", 
+                                               ifelse((recency_score >= 3) & (frequency_score >= 1 & frequency_score <= 3) & (monetary_score >= 1 & monetary_score <= 3), "Potential Loyalists",
+                                                      ifelse((recency_score >= 4 & recency_score <= 5) & (frequency_score < 2) & (monetary_score < 2), "New Customers",
+                                                             ifelse((recency_score >= 3 & recency_score <= 4) & (frequency_score < 2) & (monetary_score < 2), "Promising",
+                                                                    ifelse((recency_score >= 3 & recency_score <= 4) & (frequency_score >= 2 & frequency_score <= 4) & (monetary_score >= 3 & monetary_score <= 5), "Need attention",
+                                                                           ifelse((recency_score >= 2 & recency_score <= 3) & (frequency_score < 3) & (monetary_score < 3), "About to sleep",
+                                                                                  ifelse((recency_score < 3) & (frequency_score >=2 & frequency_score <= 5) & (monetary_score >= 2 & monetary_score <= 5), "At risk",
+                                                                                         ifelse((recency_score < 2) & (frequency_score >= 4 & frequency_score <= 5) & (monetary_score >= 4 & monetary_score <= 5), "Can't loose them",
+                                                                                                ifelse((recency_score >= 2 & recency_score <=3) & (frequency_score >= 2 & frequency_score <= 3) & (monetary_score >= 2 & monetary_score <= 3), "Hibernating",
+                                                                                                       ifelse((recency_score <= 2) & (frequency_score <= 2) & (monetary_score >= 4), "High Value Lost",
+                                                                                                              ifelse((recency_score < 2) & (frequency_score <= 3) & (monetary_score <= 2), "Low Value Lost",
+                                                                                                                     ifelse((recency_score == 3) & (frequency_score < 2) & (monetary_score >= 4), "High Spending New Customers",
+                                                                                                                            ifelse((recency_score <= 2) & (frequency_score < 2) & (monetary_score == 3), "Average Spending Lost",
+                                                                                                                                   ifelse((recency_score <= 2) &(frequency_score <= 4) &(monetary_score == 1), "Low Value Hibernating",
+                                                                                                                                          ifelse((recency_score <= 3) &(frequency_score >= 4) &(monetary_score <=3), "Average Spending Need Attention", "Low Spending Champions"))))))))))))))))))) -> rfm
+```
+
+Number of Customers in Segments
+```{r}
+plotly::ggplotly(
+  ggplot(rfm, aes(x= segments, fill= segments))+
+    geom_bar(col= "black")+
+    theme(axis.text.x = element_text(angle = 45))
+)
+```
+
+Calculating CLTV
+```{r}
+# purchase value
+super_store_data |> 
+  group_by(order_id) |> 
+  summarise(purchase_value= sum(sales)) |> 
+  ungroup() |> 
+  summarise(avg_purch_value= mean(purchase_value)) -> avg_purchase_value
+
+# purchase frequency        
+super_store_data |> 
+  mutate(month= lubridate::month(order_date),
+         year= lubridate::year(order_date)) |> 
+  group_by(customer_id, month,year) |> 
+  summarise(purchase_frequency= n_distinct(order_id)) |>
+  ungroup() |> 
+  summarise(avg_purch_frequency= mean(purchase_frequency)) ->avg_purchase_frequency
+
+#Gross margin
+super_store_data |> 
+  mutate(gross_margin= sum(profit)/ sum(sales))
+gross_margin <- 0.1268953
+
+# life span
+super_store_data |>
+  mutate(month= lubridate::month(order_date)) |> 
+  group_by(customer_id) |> 
+  summarise(lifespan= difftime(max(order_date), min(order_date), units = "days")) |> 
+  mutate(lifespan= round(as.integer(lifespan/30))) |>
+  summarise(avg_life_span= mean(lifespan)) -> avg_life_span
+
+
+CLTV= (avg_purchase_value$avg_purch_value) * (gross_margin) * (avg_purchase_frequency$avg_purch_frequency) * (avg_life_span$avg_life_span)
+CLTV
+```
+
+JOINS
+Ship-Mode Preference by Segments (JOINS)
+```{r}
+left_join(rfm, super_store_data) -> joined
+plotly::ggplotly(
+  ggplot(joined |> 
+           group_by(segments) |> 
+           count(ship_mode), aes(x= segments, y= n,
+                                 fill= ship_mode))+
+    geom_col(position = "fill", col= "black")+
+    theme(axis.text.x = element_text(angle = 90))+
+    labs(x= "Customer Segments", y= "Count", fill= "Shipment-Mode",
+         title = "Ship-Mode Preference by Segments")+
+    coord_flip()
+)
+```
+
+Segments Count Across Sub-Categories
+```{r}
+plotly::ggplotly(
+  ggplot(joined |> 
+           group_by(sub_category) |> 
+           count(segments), aes(x= segments, y= n, fill= sub_category))+
+    geom_col(position = "fill", col="black") +
+    theme(axis.text.x = element_text(angle = 90)) +
+    labs(x= "Customer Segments", y= "Count", fill= "Sub-Category",
+         title = "Segments Count Across Sub-Categories")
+)
+```
+
